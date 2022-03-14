@@ -24,7 +24,7 @@ def FindImagePoints(CKBD: tuple, imgpath: list, objp: np.array, subpix_criteria:
     reture:
         objpoints: the object points, 3d point in real world space
         imgpoints: the image points, 2d points in image plane
-        imgshape: list or tuple, the size of the image
+        imgshape: list or tuple, the shape of the image
     """
     objpoints = []  # 3d point in real world space
     imgpoints = []  # 2d points in image plane.
@@ -109,6 +109,30 @@ def undistort(imgpath, K, D):
     return img, undistorted_img
 
 
+def SingleCameraCalibrate(CKBD, subpix_criteria, calibration_flags, rootpath):
+    """
+    :param CKBD: list or tuple, the size of the checkerboard
+    :param subpix_criteria: flags, how to find the chess board corners
+    :param calibration_flags: flags, how to compute calibration matrix
+    :param rootpath: the root path of the image
+    return:
+        imgshape: list or tuple, the shape of the image
+        objpoints: the object points, 3d point in real world space
+        imgpoints: the image points, 2d points in image plane
+        K: 3x3 floating-point camera matrix
+        D: vector of distortion coefficients
+    """
+    objp = CreateObjectPoints(CKBD)
+    imgpath = glob.glob(rootpath)
+    objpoints, imgpoints, imgshape = FindImagePoints(
+        CKBD, imgpath, objp, subpix_criteria
+    )
+    K, D = FisheyeCalibrate(objpoints, imgpoints, calibration_flags, imgshape)
+    objpoints = np.reshape(objpoints, (-1, 1, CKBD[0] * CKBD[1], 3))
+    imgpoints = np.reshape(imgpoints, (-1, 1, CKBD[0] * CKBD[1], 2))
+    return imgshape, objpoints, imgpoints, K, D
+
+
 if __name__ == "__main__":
     CHECKERBOARD = (7, 10)
     subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.1)
@@ -119,7 +143,7 @@ if __name__ == "__main__":
     )
 
     objp = CreateObjectPoints(CHECKERBOARD)
-    imgpath = glob.glob("/home/chuxwa/code/立体匹配/极线矫正/stereo/*.png")
+    imgpath = glob.glob("image/calibration/left/*.png")
     objpoints, imgpoints, imgshape = FindImagePoints(
         CHECKERBOARD, imgpath, objp, subpix_criteria
     )
@@ -127,5 +151,5 @@ if __name__ == "__main__":
 
     for i, frame in enumerate(imgpath):
         img, undistorted_img = undistort(frame, K, D)
-        cv2.imwrite("output/distorted" + str(i) + ".png", img)
-        cv2.imwrite("output/undistorted" + str(i) + ".png", undistorted_img)
+        cv2.imwrite("output/calibration/distorted" + str(i) + ".png", img)
+        cv2.imwrite("output/calibration/undistorted" + str(i) + ".png", undistorted_img)
