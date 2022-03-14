@@ -28,13 +28,13 @@ def FindImagePoints(CKBD: tuple, imgpath: list, objp: np.array, subpix_criteria:
     """
     objpoints = []  # 3d point in real world space
     imgpoints = []  # 2d points in image plane.
-    _img_shape = None
+    imgshape = None
     for fname in imgpath:
         img = cv2.imread(fname)
-        if _img_shape == None:
-            _img_shape = img.shape[:2]
+        if imgshape == None:
+            imgshape = img.shape[:2]
         else:
-            assert _img_shape == img.shape[:2], "All images must share the same size."
+            assert imgshape == img.shape[:2], "All images must share the same size."
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # Find the chess board corners
@@ -52,7 +52,7 @@ def FindImagePoints(CKBD: tuple, imgpath: list, objp: np.array, subpix_criteria:
             cv2.cornerSubPix(gray, corners, (3, 3), (-1, -1), subpix_criteria)
             imgpoints.append(corners)
 
-    return objpoints, imgpoints, imgshape
+    return objpoints, imgpoints, imgshape[::-1]
 
 
 def FisheyeCalibrate(
@@ -101,7 +101,7 @@ def undistort(imgpath, K, D):
     img = cv2.imread(imgpath)
     imgshape = img.shape[:2]
     map1, map2 = cv2.fisheye.initUndistortRectifyMap(
-        K, D, np.eye(3), K, imgshape, cv2.CV_16SC2
+        K, D, np.eye(3), K, imgshape[::-1], cv2.CV_16SC2
     )
     undistorted_img = cv2.remap(
         img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT
@@ -123,4 +123,9 @@ if __name__ == "__main__":
     objpoints, imgpoints, imgshape = FindImagePoints(
         CHECKERBOARD, imgpath, objp, subpix_criteria
     )
-    FisheyeCalibrate(objpoints, imgpoints, calibration_flags, imgshape)
+    K, D = FisheyeCalibrate(objpoints, imgpoints, calibration_flags, imgshape)
+
+    for i, frame in enumerate(imgpath):
+        img, undistorted_img = undistort(frame, K, D)
+        cv2.imwrite('output/distorted'+str(i)+'.png', img)
+        cv2.imwrite('output/undistorted'+str(i)+'.png', undistorted_img)
