@@ -72,7 +72,7 @@ def FisheyeCalibrate(
     D = np.zeros((4, 1))
     rvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
     tvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
-    rms, _, _, _, _ = cv2.fisheye.calibrate(
+    _, _, _, _, _ = cv2.fisheye.calibrate(
         objpoints,
         imgpoints,
         imgshape,
@@ -127,5 +127,5 @@ if __name__ == "__main__":
 
     for i, frame in enumerate(imgpath):
         img, undistorted_img = undistort(frame, K, D)
-        cv2.imwrite('output/distorted'+str(i)+'.png', img)
-        cv2.imwrite('output/undistorted'+str(i)+'.png', undistorted_img)
+        cv2.imwrite("output/distorted" + str(i) + ".png", img)
+        cv2.imwrite("output/undistorted" + str(i) + ".png", undistorted_img)
