@@ -18,12 +18,12 @@ def ComputerDepthMap(imgleft, imgright):
     blockSize = 3
     DepthMap_func = cv2.StereoSGBM_create(
         minDisparity=-16,
-        numDisparities=5 * 16,
+        numDisparities=4 * 16,
         blockSize=blockSize,
         P1=8 * 4 * blockSize ** 2,
         P2=32 * 4 * blockSize ** 2,
         disp12MaxDiff=1,
-        uniquenessRatio=10,
+        uniquenessRatio=5,
         # preFilterCap=63,
         # speckleWindowSize=200,
         mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY,
