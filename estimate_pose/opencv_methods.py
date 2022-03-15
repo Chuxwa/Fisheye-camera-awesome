@@ -60,7 +60,7 @@ def DrawEpiline(goodmatches, source_img, source_pts, target_img, target_pts):
     cv2.imwrite("output/sift/imgmatch.png", img_out)
 
 
-def estimate_pose(source_pts, target_pts, K_source, K_target, thresh, conf=0.99999):
+def EstimatePose(source_pts, target_pts, K_source, K_target, thresh, conf=0.99999):
     if len(source_pts) < 5:
         return None
     # normalize keypoints
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     DrawEpiline(goodmatches, source_img, source_kps, target_img, target_kps)
     K_source, D_source = ReadInternalConfig(source_name)
     K_target, D_target = ReadInternalConfig(target_name)
-    ret = estimate_pose(
+    ret = EstimatePose(
         source_pts, target_pts, K_source, K_target, thresh=1, conf=0.99999
     )
     SaveExteriorConfig(ret, source_name, target_name)
