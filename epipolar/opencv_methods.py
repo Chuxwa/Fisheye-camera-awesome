@@ -26,7 +26,7 @@ def SaveCameraConfig(imgshape, K, D, R, P, name):
     response["rectification_matrix"] = {"data": R.tolist()}
     response["projection_matrix"] = {"data": P.tolist()}
     response["distortion_model"] = cv2.CV_16SC2
-    with open("output/camera_config" + name + "config.yaml", "w", encoding="utf-8") as f:
+    with open("output/camera_config/" + name + "config.yaml", "w", encoding="utf-8") as f:
         yaml.dump(data=response, stream=f, allow_unicode=True)
 
 
@@ -111,7 +111,7 @@ def ReadCameraConfig(name):
         R (array): Rectification transformation in the object space
         P (array): New camera matrix (3x3) or new projection matrix (3x4)
     """
-    with open("./c" + name + "config.yaml", "r", encoding="utf-8") as f:
+    with open("output/camera_config" + name + "config.yaml", "r", encoding="utf-8") as f:
         context = yaml.load(f, Loader=yaml.FullLoader)
     K = np.array(context["camera_matrix"]["data"])
     D = np.array(context["distortion_coefficients"]["data"])
