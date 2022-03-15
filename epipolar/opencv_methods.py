@@ -174,8 +174,8 @@ if __name__ == "__main__":
         + cv2.fisheye.CALIB_CHECK_COND
         + cv2.fisheye.CALIB_FIX_SKEW
     )
-    leftpath = "image/calibration/left/*.png"
-    rightpath = "image/calibration/right/*.png"
+    leftpath = "image/epipolar/left/*.png"
+    rightpath = "image/epipolar/right/*.png"
 
     (
         K_left,
