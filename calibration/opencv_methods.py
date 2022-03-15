@@ -1,6 +1,6 @@
-import os
 import cv2
 import glob
+import yaml
 import numpy as np
 
 
@@ -89,7 +89,7 @@ def FisheyeCalibrate(
     return K, D
 
 
-def undistort(imgpath, K, D):
+def UndistortImage(imgpath, K, D):
     """
     :param imgpath: string, the root path of the image
     :param K: 3x3 floating-point camera matrix
@@ -133,6 +133,42 @@ def SingleCameraCalibrate(CKBD, subpix_criteria, calibration_flags, rootpath):
     return imgshape, objpoints, imgpoints, K, D
 
 
+def SaveInternalConfig(K, D, name):
+    """
+    save the camera information
+    :param K: 3x3 floating-point camera matrix
+    :param D: vector of distortion coefficients
+    :param name: str, the name of the camera config file
+
+    """
+    response = {}
+    response["camera_matrix"] = {"data": K.tolist()}
+    response["distortion_coefficients"] = {"data": D.tolist()}
+    with open(
+        "output/internal_config/" + name + "_config.yaml", "w", encoding="utf-8"
+    ) as f:
+        yaml.dump(data=response, stream=f, allow_unicode=True)
+
+
+def ReadInternalConfig(name):
+    """read camera configuration from yaml file
+
+    Args:
+        name (str): the name of yaml file
+
+    Returns:
+        K (array): 3x3 floating-point camera matrix
+        D (array): vector of distortion coefficients
+    """
+    with open(
+        "output/internal_config/" + name + "_config.yaml", "r", encoding="utf-8"
+    ) as f:
+        context = yaml.load(f, Loader=yaml.FullLoader)
+    K = np.array(context["camera_matrix"]["data"])
+    D = np.array(context["distortion_coefficients"]["data"])
+    return K, D
+
+
 if __name__ == "__main__":
     CHECKERBOARD = (7, 10)
     subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.1)
@@ -151,6 +187,6 @@ if __name__ == "__main__":
 
     imgpath = glob.glob("image/around_views/*.png")
     for i, frame in enumerate(imgpath):
-        img, undistorted_img = undistort(frame, K, D)
+        img, undistorted_img = UndistortImage(frame, K, D)
         cv2.imwrite("output/calibration/distorted" + str(i) + ".png", img)
         cv2.imwrite("output/calibration/undistorted" + str(i) + ".png", undistorted_img)
