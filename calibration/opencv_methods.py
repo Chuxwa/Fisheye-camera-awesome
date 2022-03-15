@@ -149,6 +149,7 @@ if __name__ == "__main__":
     )
     K, D = FisheyeCalibrate(objpoints, imgpoints, calibration_flags, imgshape)
 
+    imgpath = glob.glob("image/around_views/*.png")
     for i, frame in enumerate(imgpath):
         img, undistorted_img = undistort(frame, K, D)
         cv2.imwrite("output/calibration/distorted" + str(i) + ".png", img)
