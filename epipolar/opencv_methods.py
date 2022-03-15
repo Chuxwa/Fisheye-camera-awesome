@@ -7,7 +7,7 @@ import yaml
 from calibration.opencv_methods import SingleCameraCalibrate
 
 
-def save_camera_config(imgshape, K, D, R, P, name):
+def SaveCameraConfig(imgshape, K, D, R, P, name):
     """
     save the camera information
     :param imgshape: list or tuple, the shape of the image
@@ -16,7 +16,7 @@ def save_camera_config(imgshape, K, D, R, P, name):
     :param R: Rectification transformation in the object space
     :param P: New camera matrix (3x3) or new projection matrix (3x4)
     :param name: str, the name of the camera config file
-    
+
     """
     response = {}
     response["image_width"] = imgshape[1]
@@ -26,12 +26,17 @@ def save_camera_config(imgshape, K, D, R, P, name):
     response["rectification_matrix"] = {"data": R.tolist()}
     response["projection_matrix"] = {"data": P.tolist()}
     response["distortion_model"] = cv2.CV_16SC2
-    with open("./c" + name + "config.yaml", "w", encoding="utf-8") as f:
+    with open("output/camera_config" + name + "config.yaml", "w", encoding="utf-8") as f:
         yaml.dump(data=response, stream=f, allow_unicode=True)
 
 
 def FisheyeStereoCalibrate(
-    CKBD, leftpath, rightpath, subpix_criteria, calibration_flags, stereo_calibration_flags
+    CKBD,
+    leftpath,
+    rightpath,
+    subpix_criteria,
+    calibration_flags,
+    stereo_calibration_flags,
 ):
     """stereo calibration for fisheye camera
 
@@ -52,7 +57,8 @@ def FisheyeStereoCalibrate(
         D_right (array): vector of distortion coefficients
         R2 (array): Rectification transformation in the object space
         P2 (array): New camera matrix (3x3) or new projection matrix (3x4)
-        Q (array): 
+        Q (array):
+        imgshape (tuple): the shape of the image
     """
     _, _, imgpoints_left, K_left, D_left = SingleCameraCalibrate(
         CKBD, subpix_criteria, calibration_flags, leftpath
@@ -87,13 +93,13 @@ def FisheyeStereoCalibrate(
         T,
         flags=cv2.CALIB_ZERO_DISPARITY,
     )
-    save_camera_config(imgshape, K_left, D_left, R1, P1, "left_")
-    save_camera_config(imgshape, K_right, D_right, R2, P2, "right_")
+    SaveCameraConfig(imgshape, K_left, D_left, R1, P1, "left_")
+    SaveCameraConfig(imgshape, K_right, D_right, R2, P2, "right_")
 
-    return K_left, D_left, R1, P1, K_right, D_right, R2, P2, Q
+    return K_left, D_left, R1, P1, K_right, D_right, R2, P2, Q, imgshape
 
 
-def read_camera_config(name):
+def ReadCameraConfig(name):
     """read camera configuration from yaml file
 
     Args:
@@ -164,28 +170,43 @@ if __name__ == "__main__":
         + cv2.fisheye.CALIB_FIX_SKEW
     )
     stereo_calibration_flags = (
-        cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC
+        cv2.fisheye.CALIB_FIX_INTRINSIC
         + cv2.fisheye.CALIB_CHECK_COND
         + cv2.fisheye.CALIB_FIX_SKEW
     )
     leftpath = "image/calibration/left/*.png"
     rightpath = "image/calibration/right/*.png"
 
-    K_left, D_left, R1, P1, K_right, D_right, R2, P2, Q = FisheyeStereoCalibrate(
-        CHECKERBOARD, leftpath, rightpath, calibration_flags, stereo_calibration_flags
+    (
+        K_left,
+        D_left,
+        R1,
+        P1,
+        K_right,
+        D_right,
+        R2,
+        P2,
+        Q,
+        imgshape,
+    ) = FisheyeStereoCalibrate(
+        CHECKERBOARD,
+        leftpath,
+        rightpath,
+        subpix_criteria,
+        calibration_flags,
+        stereo_calibration_flags,
     )
-    leftcamera = (K_left, D_left, R1, P1)
-    rightcamera = (K_right, D_right, R2, P2)
+    leftcamera = (K_left, D_left, R1, P1, imgshape)
+    rightcamera = (K_right, D_right, R2, P2, imgshape)
 
     test_left = glob.glob("image/test/left/*.png")
     test_right = glob.glob("image/test/right/*.png")
 
-    
     for i in range(len(test_left)):
         img_left = cv2.imread(test_left[i])
         img_right = cv2.imread(test_right[i])
 
-        result, result_left, result_right = EpipolarRecitification = (
+        result, result_left, result_right = EpipolarRecitification(
             leftcamera,
             rightcamera,
             img_left,
