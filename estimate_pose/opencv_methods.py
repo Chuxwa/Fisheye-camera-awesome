@@ -109,7 +109,7 @@ def SaveExteriorConfig(ret, source_name, target_name):
     response["rotation_matrix"] = {"data": ret[0].tolist()}
     response["translation_matrix"] = {"data": ret[1].tolist()}
     with open(
-        "output/exterior_config/" + source_name + "-->" + target_name + "_config.yaml",
+        "output/exterior_config/" + source_name + "--" + target_name + "_config.yaml",
         "w",
         encoding="utf-8",
     ) as f:
@@ -119,7 +119,7 @@ def SaveExteriorConfig(ret, source_name, target_name):
 def ReadExteriorConfig(source_name, target_name):
 
     with open(
-        "output/exterior_config/" + source_name + "-->" + target_name + "_config.yaml",
+        "output/exterior_config/" + source_name + "--" + target_name + "_config.yaml",
         "r",
         encoding="utf-8",
     ) as f:

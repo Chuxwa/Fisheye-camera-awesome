@@ -4,7 +4,7 @@ from calibration.opencv_methods import (
     CreateObjectPoints,
     FisheyeCalibrate,
     FindImagePoints,
-    ReadInternalConfig,
+    SaveInternalConfig,
     UndistortImage,
 )
 
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         CHECKERBOARD, imgpath, objp, subpix_criteria
     )
     K, D = FisheyeCalibrate(objpoints, imgpoints, calibration_flags, imgshape)
-    ReadInternalConfig(K, D, name)
+    SaveInternalConfig(K, D, name)
 
     imgpath = glob.glob("image/" + name + "/*.png")
     for i, frame in enumerate(imgpath):
