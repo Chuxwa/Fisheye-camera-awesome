@@ -7,6 +7,35 @@ import yaml
 from calibration.opencv_methods import SingleCameraCalibrate
 
 
+def SaveReprejectionMatrix(Q, name):
+    """
+    save the camera information
+    :param Q: disparity-to-depth mapping matrix (4x4)
+    :param name: str, the name of the camera config file
+
+    """
+    response = {}
+    response["reprejection_matrix"] = Q.tolist()
+    with open(
+        "output/camera_config/" + name + "config.yaml", "w", encoding="utf-8"
+    ) as f:
+        yaml.dump(data=response, stream=f, allow_unicode=True)
+
+
+def ReadReprejectionMatrix(name):
+    """
+    save the camera information
+    :param name: str, the name of the camera config file
+    return:
+        Q: disparity-to-depth mapping matrix (4x4)
+    """
+    with open(
+        "output/camera_config/" + name + "config.yaml", "r", encoding="utf-8"
+    ) as f:
+        context = yaml.load(f, Loader=yaml.FullLoader)
+    Q = np.array(context["reprejection_matrix"])
+    return Q
+
 def SaveCameraConfig(imgshape, K, D, R, P, name):
     """
     save the camera information
@@ -26,8 +55,33 @@ def SaveCameraConfig(imgshape, K, D, R, P, name):
     response["rectification_matrix"] = {"data": R.tolist()}
     response["projection_matrix"] = {"data": P.tolist()}
     response["distortion_model"] = cv2.CV_16SC2
-    with open("output/camera_config/" + name + "config.yaml", "w", encoding="utf-8") as f:
+    with open(
+        "output/camera_config/" + name + "config.yaml", "w", encoding="utf-8"
+    ) as f:
         yaml.dump(data=response, stream=f, allow_unicode=True)
+
+
+def ReadCameraConfig(name):
+    """read camera configuration from yaml file
+
+    Args:
+        name (str): the name of yaml file
+
+    Returns:
+        K (array): 3x3 floating-point camera matrix
+        D (array): vector of distortion coefficients
+        R (array): Rectification transformation in the object space
+        P (array): New camera matrix (3x3) or new projection matrix (3x4)
+    """
+    with open(
+        "output/camera_config/" + name + "config.yaml", "r", encoding="utf-8"
+    ) as f:
+        context = yaml.load(f, Loader=yaml.FullLoader)
+    K = np.array(context["camera_matrix"]["data"])
+    D = np.array(context["distortion_coefficients"]["data"])
+    P = np.array(context["rectification_matrix"]["data"])
+    R = np.array(context["projection_matrix"]["data"])
+    return K, D, P, R
 
 
 def FisheyeStereoCalibrate(
@@ -95,29 +149,9 @@ def FisheyeStereoCalibrate(
     )
     SaveCameraConfig(imgshape, K_left, D_left, R1, P1, "left_")
     SaveCameraConfig(imgshape, K_right, D_right, R2, P2, "right_")
+    SaveReprejectionMatrix(Q, "left-right_")
 
     return K_left, D_left, R1, P1, K_right, D_right, R2, P2, Q, imgshape
-
-
-def ReadCameraConfig(name):
-    """read camera configuration from yaml file
-
-    Args:
-        name (str): the name of yaml file
-
-    Returns:
-        K (array): 3x3 floating-point camera matrix
-        D (array): vector of distortion coefficients
-        R (array): Rectification transformation in the object space
-        P (array): New camera matrix (3x3) or new projection matrix (3x4)
-    """
-    with open("output/camera_config/" + name + "config.yaml", "r", encoding="utf-8") as f:
-        context = yaml.load(f, Loader=yaml.FullLoader)
-    K = np.array(context["camera_matrix"]["data"])
-    D = np.array(context["distortion_coefficients"]["data"])
-    P = np.array(context["rectification_matrix"]["data"])
-    R = np.array(context["projection_matrix"]["data"])
-    return K, D, P, R
 
 
 def EpipolarRecitification(leftcamera, rightcamera, img_left, img_right):
