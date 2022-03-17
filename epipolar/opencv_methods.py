@@ -17,7 +17,7 @@ def SaveReprejectionMatrix(Q, name):
     response = {}
     response["reprejection_matrix"] = Q.tolist()
     with open(
-        "output/camera_config/" + name + "config.yaml", "w", encoding="utf-8"
+        "output/camera_config/" + name + "_config.yaml", "w", encoding="utf-8"
     ) as f:
         yaml.dump(data=response, stream=f, allow_unicode=True)
 
@@ -30,7 +30,7 @@ def ReadReprejectionMatrix(name):
         Q: disparity-to-depth mapping matrix (4x4)
     """
     with open(
-        "output/camera_config/" + name + "config.yaml", "r", encoding="utf-8"
+        "output/camera_config/" + name + "_config.yaml", "r", encoding="utf-8"
     ) as f:
         context = yaml.load(f, Loader=yaml.FullLoader)
     Q = np.array(context["reprejection_matrix"])
@@ -56,7 +56,7 @@ def SaveCameraConfig(imgshape, K, D, R, P, name):
     response["projection_matrix"] = {"data": P.tolist()}
     response["distortion_model"] = cv2.CV_16SC2
     with open(
-        "output/camera_config/" + name + "config.yaml", "w", encoding="utf-8"
+        "output/camera_config/" + name + "_config.yaml", "w", encoding="utf-8"
     ) as f:
         yaml.dump(data=response, stream=f, allow_unicode=True)
 
@@ -74,7 +74,7 @@ def ReadCameraConfig(name):
         P (array): New camera matrix (3x3) or new projection matrix (3x4)
     """
     with open(
-        "output/camera_config/" + name + "config.yaml", "r", encoding="utf-8"
+        "output/camera_config/" + name + "_config.yaml", "r", encoding="utf-8"
     ) as f:
         context = yaml.load(f, Loader=yaml.FullLoader)
     K = np.array(context["camera_matrix"]["data"])
@@ -147,9 +147,9 @@ def FisheyeStereoCalibrate(
         T,
         flags=cv2.CALIB_ZERO_DISPARITY,
     )
-    SaveCameraConfig(imgshape, K_left, D_left, R1, P1, "left_")
-    SaveCameraConfig(imgshape, K_right, D_right, R2, P2, "right_")
-    SaveReprejectionMatrix(Q, "left-right_")
+    SaveCameraConfig(imgshape, K_left, D_left, R1, P1, "left")
+    SaveCameraConfig(imgshape, K_right, D_right, R2, P2, "right")
+    SaveReprejectionMatrix(Q, "left-right")
 
     return K_left, D_left, R1, P1, K_right, D_right, R2, P2, Q, imgshape
 
