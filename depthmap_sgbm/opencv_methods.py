@@ -1,9 +1,7 @@
 import cv2
 import numpy as np
-import time
 import glob
 from epipolar.opencv_methods import ReadCameraConfig, EpipolarRecitification
-
 
 def ComputerDepthMap(imgleft, imgright):
     """use opencv finction to compute depth map
@@ -18,7 +16,7 @@ def ComputerDepthMap(imgleft, imgright):
     blockSize = 3
     DepthMap_func = cv2.StereoSGBM_create(
         minDisparity=-16,
-        numDisparities=4 * 16,
+        numDisparities=5 * 16,
         blockSize=blockSize,
         P1=8 * 4 * blockSize ** 2,
         P2=32 * 4 * blockSize ** 2,
@@ -30,7 +28,7 @@ def ComputerDepthMap(imgleft, imgright):
     )
     disparity = DepthMap_func.compute(imgleft, imgright)
 
-    disp = cv2.normalize(
+    disp_img = cv2.normalize(
         disparity,
         disparity,
         alpha=0,
@@ -38,8 +36,33 @@ def ComputerDepthMap(imgleft, imgright):
         norm_type=cv2.NORM_MINMAX,
         dtype=cv2.CV_8U,
     )
-    return disp
 
+    return disparity,disp_img
+
+
+def DepthEstimation(disparity, Q, scale:float=1.0, method:bool=True):
+    """reproject Image To 3D points
+
+    Args:
+        disparity (array): the disparity map
+        Q (array): disparity-to-depth mapping matrix (4x4)
+        scale: float32 
+    Returns:
+        depth (array): the depth of all points
+    """
+    # 将图片扩展至3d空间中，其z方向的值则为当前的距离
+    if method:
+        points_3d = cv2.reprojectImageTo3D(disparity, Q)  # 单位是毫米(mm)
+        x, y, depth = cv2.split(points_3d)
+    else:
+        # baseline = abs(camera_config["T"][0])
+        baseline = 1 / Q[3, 2]  # 基线也可以由T[0]计算
+        fx = abs(Q[2, 3])
+        depth = (fx * baseline) / disparity
+    depth = depth * scale
+    # depth = np.asarray(depth, dtype=np.uint16)
+    depth = np.asarray(depth, dtype=np.float32)
+    return points_3d, depth
 
 if __name__ == "__main__":
     imgshape = (1280, 720)
