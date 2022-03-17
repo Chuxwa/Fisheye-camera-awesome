@@ -9,9 +9,9 @@ from calibration.opencv_methods import (
 )
 
 if __name__ == "__main__":
-    CHECKERBOARD = (7, 10)
-    name = "left"
-    subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.1)
+    CHECKERBOARD = (24, 24)
+    name = "test"
+    subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 0.1)
     calibration_flags = (
         cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC
         + cv2.fisheye.CALIB_CHECK_COND
@@ -26,7 +26,8 @@ if __name__ == "__main__":
     K, D = FisheyeCalibrate(objpoints, imgpoints, calibration_flags, imgshape)
     SaveInternalConfig(K, D, name)
 
-    imgpath = glob.glob("image/" + name + "/*.png")
+    imgpath = glob.glob("image/source/around_views/*.png")
+    name = "around_views"
     for i, frame in enumerate(imgpath):
         img, unimg = UndistortImage(frame, K, D)
         cv2.imwrite("output/calibration/" + name + "/" + str(i) + ".png", img)
