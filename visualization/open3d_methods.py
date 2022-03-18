@@ -18,7 +18,7 @@ class Open3DVisualizer(object):
         name: str = "stereo reconstruction",
         width: int = 800,
         height: int = 600,
-        point_size: int = 2,
+        point_size: int = 5,
         filename: str = "output/config/visualization/view_point.json",
     ):
         """Point cloud visualizer by using Open3D
