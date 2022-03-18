@@ -1,10 +1,12 @@
 import cv2
 import glob
 import time
+import argparse
 import numpy as np
 from epipolar.opencv_methods import EpipolarRecitification
 from depthmap_sgbm.opencv_methods import StereoDepthEstimation
 from visualization.open3d_methods import Open3DVisualizer
+from depthmap_raft.raft import RAFTDepthEstimation
 
 
 def NormPointCloud(points):
@@ -14,7 +16,7 @@ def NormPointCloud(points):
     z_mean = np.mean(z)
     x_norm = x - x_mean
     y_norm = y - y_mean
-    z_norm = z_mean - z
+    z_norm = z - z_mean
     outpoints = np.stack([x_norm, y_norm, z_norm], axis=1)[:, :, 0]
     return outpoints
 
@@ -34,7 +36,8 @@ def DepthFilter(points, colors, threshold_low: int = 0, threshold_high: int = 45
     colors = colors[flag, :]
     return points, colors
 
-def MaskDepthFilter(points, colors, mask):
+
+def MaskDepthFilter(points: np.ndarray, colors: np.ndarray, mask: np.ndarray):
     """Remove useless points
 
     Args:
@@ -46,6 +49,42 @@ def MaskDepthFilter(points, colors, mask):
     colors = colors[mask, :]
     return points, colors
 
+
+def CropImage(img: np.ndarray, height: int = 720, width: int = 1280):
+    """Crop image
+
+    Args:
+        img (np.ndarray): the source image
+        height (int, optional): the height of the cropped image. Defaults to 720.
+        width (int, optional): the width of the cropped image. Defaults to 1280.
+
+    Returns:
+        img: cropped image
+    """
+    src_height, src_width = img.shape[0], img.shape[1]
+    start_width = (src_width - width) // 2
+    start_height = src_height - height
+    cropped_img = img[
+        start_height : start_height + height, start_width : start_width + width, :
+    ]
+    return cropped_img
+
+
+def ResizeImage(img: np.ndarray, depth: np.ndarray):
+    """Resize depth map to the same size of image
+
+    Args:
+        img (np.ndarray): the source image
+        depth (np.ndarray): the depth map
+
+    Returns:
+        depth: the depth map
+    """
+    width, height = img.shape[0], img.shape[1]
+    depth = cv2.resize(depth, (height, width))
+    return depth
+
+
 class StereoReconstruction(object):
     """Stereo reconstruction function
 
@@ -56,13 +95,7 @@ class StereoReconstruction(object):
         jsonpath (str): the filename of the viewpoint
     """
 
-    def __init__(
-        self,
-        imgshape: tuple,
-        camera1_name: str,
-        camera2_name: str,
-        jsonpath: str,
-    ):
+    def __init__(self, args):
         """Stereo reconstruction function
 
         Args:
@@ -71,8 +104,11 @@ class StereoReconstruction(object):
             camera2_name (str): the name of the camera two
             jsonpath (str): the filename of the viewpoint
         """
-        self.stereoCamera = StereoDepthEstimation(imgshape, camera1_name, camera2_name)
-        self.visualizer = Open3DVisualizer(jsonpath)
+        self.stereoCamera = StereoDepthEstimation(
+            args.imgshape, args.camera1_name, args.camera2_name
+        )
+        self.visualizer = Open3DVisualizer(args.jsonpath)
+        self.depthestimation = RAFTDepthEstimation(args)
 
     def PointCloudGenerator(self, img_left: np.ndarray, img_right: np.ndarray):
         """Point cloud generation
@@ -91,9 +127,16 @@ class StereoReconstruction(object):
             img_left,
             img_right,
         )
-        disparity = np.load("left.npy")[1:, :]
-        disparity = cv2.bilateralFilter(disparity, 3, 30, 30)
-        mask = disparity.reshape((-1))>-80
+        result_left = CropImage(result_left, 600, 1280)
+        result_right = CropImage(result_right, 600, 1280)
+
+        result_left = cv2.bilateralFilter(result_left, 20, 75, 75)
+        result_right = cv2.bilateralFilter(result_right, 20, 75, 75)
+        disparity = self.depthestimation.run(result_left, result_right)
+        disparity = ResizeImage(result_left, disparity)
+        disparity = cv2.bilateralFilter(disparity, 3, 75, 75)
+        cv2.imwrite("disparity.png", disparity)
+        mask = disparity.reshape((-1)) > -80
         points_3d, depth = self.stereoCamera.DepthEstimation(disparity)
 
         # from post_process.post_process import get_processed
@@ -117,28 +160,99 @@ class StereoReconstruction(object):
 
 
 if __name__ == "__main__":
-    imgshape = (1280, 720)
-    camera1_name = "left"
-    camera2_name = "right"
-    jsonpath = "output/config/visualization/view_point.json"
-    stereoCamera = StereoReconstruction(imgshape, camera1_name, camera2_name, jsonpath)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--restore_ckpt", help="restore checkpoint", required=True)
+    parser.add_argument(
+        "--imgshape", help="the shape of the image", default=(1280, 720)
+    )
+    parser.add_argument(
+        "--camera1_name", help="the name of the first (left) camera", default="left"
+    )
+    parser.add_argument(
+        "--camera2_name", help="the name of the second (right) camera", default="right"
+    )
+    parser.add_argument(
+        "--jsonpath",
+        help="the filename of the viewpoint",
+        default="output/config/visualization/view_point.json",
+    )
+    parser.add_argument(
+        "-l",
+        "--left_imgs",
+        help="path to all first (left) frames",
+        default="image/test/left/*.png",
+    )
+    parser.add_argument(
+        "-r",
+        "--right_imgs",
+        help="path to all second (right) frames",
+        default="image/test/right/*.png",
+    )
+    parser.add_argument(
+        "--mixed_precision", action="store_true", help="use mixed precision"
+    )
+    parser.add_argument(
+        "--valid_iters",
+        type=int,
+        default=32,
+        help="number of flow-field updates during forward pass",
+    )
 
-    test_left = glob.glob("image/test/left/*.png")
-    test_right = glob.glob("image/test/right/*.png")
+    # Architecture choices
+    parser.add_argument(
+        "--hidden_dims",
+        nargs="+",
+        type=int,
+        default=[128] * 3,
+        help="hidden state and context dimensions",
+    )
+    parser.add_argument(
+        "--corr_implementation",
+        choices=["reg", "alt", "reg_cuda", "alt_cuda"],
+        default="reg",
+        help="correlation volume implementation",
+    )
+    parser.add_argument(
+        "--shared_backbone",
+        action="store_true",
+        help="use a single backbone for the context and feature encoders",
+    )
+    parser.add_argument(
+        "--corr_levels",
+        type=int,
+        default=4,
+        help="number of levels in the correlation pyramid",
+    )
+    parser.add_argument(
+        "--corr_radius", type=int, default=4, help="width of the correlation pyramid"
+    )
+    parser.add_argument(
+        "--n_downsample",
+        type=int,
+        default=2,
+        help="resolution of the disparity field (1/2^K)",
+    )
+    parser.add_argument(
+        "--slow_fast_gru",
+        action="store_true",
+        help="iterate the low-res GRUs more frequently",
+    )
+    parser.add_argument(
+        "--n_gru_layers", type=int, default=3, help="number of hidden GRU levels"
+    )
 
+    args = parser.parse_args()
+    stereoCamera = StereoReconstruction(args)
+
+    test_left = glob.glob(args.left_imgs)
+    test_right = glob.glob(args.right_imgs)
     for i in range(len(test_left)):
         img_left = cv2.imread(test_left[i])
         img_right = cv2.imread(test_right[i])
         points, colors = stereoCamera.PointCloudGenerator(img_left, img_right)
-        # points = np.load("points.npy")
-        # colors = np.load("colors.npy")
-
         points = NormPointCloud(points)
-
         points, colors = DepthFilter(
             points, colors, threshold_low=-500, threshold_high=500
         )
-
         stereoCamera.PointCloudVisualization(points, colors)
-        # time.sleep(20)
-        # stereoCamera.visualizer.SaveViewPoint(jsonpath)
+        break
