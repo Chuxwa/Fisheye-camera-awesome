@@ -81,6 +81,9 @@ class StereoReconstruction(object):
         disp = cv2.bilateralFilter(disp, 5, 200, 200)
         disp_bf = cv2.bilateralFilter(disp_bf, 5, 200, 200)
         points_3d, depth = self.stereoCamera.DepthEstimation(disparity)
+
+        # from post_process.post_process import get_processed
+        # points_3d = get_processed(points_3d, result_left, iterations=3)
         # cv2.imwrite("output/sgbm/depthmap_" + str(i) + ".png", disp)
         # cv2.imwrite("output/sgbm/depthmap_bf_" + str(i) + ".png", disp_bf)
         points_3d = points_3d.reshape((-1, 3))
