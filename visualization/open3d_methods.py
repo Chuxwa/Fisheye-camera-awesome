@@ -56,13 +56,19 @@ class Open3DVisualizer(object):
         """Del the window."""
         self.visualizer.destroy_window()
 
-    def UpdatePointCloud(self, points: np.ndarray, colors: np.ndarray):
+    def UpdatePointCloud(
+        self, points: np.ndarray, colors: np.ndarray, use_rgb: bool = True
+    ):
         """Update the point cloud
 
         Args:
             points (np.ndarray): the positions of the points
             colors (np.ndarray): the colors of the points
+            use_rgb (bool): use rgb or use bgr
         """
+        if use_rgb:
+            colors = colors[:, (2, 1, 0)]
+
         self.pointcloud.points = o3d.utility.Vector3dVector(points)
         self.pointcloud.colors = o3d.utility.Vector3dVector(colors)
 
