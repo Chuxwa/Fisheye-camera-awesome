@@ -36,6 +36,7 @@ def ReadReprejectionMatrix(name):
     Q = np.array(context["reprejection_matrix"])
     return Q
 
+
 def SaveCameraConfig(imgshape, K, D, R, P, name):
     """
     save the camera information
@@ -154,6 +155,23 @@ def FisheyeStereoCalibrate(
     return K_left, D_left, R1, P1, K_right, D_right, R2, P2, Q, imgshape
 
 
+def AlphaCrop(map1, map2, imgshape, imgleft, imgright):
+    x1, y1 = map1[:, :, 0], map1[:, :, 1]
+    x2, y2 = map2[:, :, 0], map2[:, :, 1]
+    x_max, y_max = imgshape
+
+    mask_y = (y1 >= y_max) | (y1 < 0) | (y2 >= y_max) | (y2 < 0)
+    mask_x = (x1 >= x_max) | (x1 < 0) | (x2 >= x_max) | (x2 < 0)
+
+    mask_column = np.sum(mask_x, axis=0) == 0
+    mask_row = np.sum(mask_y, axis=-1) == 0
+
+    imgleft = imgleft[mask_row, :, :][:, mask_column, :]
+    imgright = imgright[mask_row, :, :][:, mask_column, :]
+
+    return imgleft, imgright
+
+
 def EpipolarRecitification(leftcamera, rightcamera, img_left, img_right):
     """epipolar recitification
 
@@ -189,6 +207,9 @@ def EpipolarRecitification(leftcamera, rightcamera, img_left, img_right):
         map2_2,
         interpolation=cv2.INTER_LINEAR,
         borderMode=cv2.BORDER_CONSTANT,
+    )
+    result_left, result_right = AlphaCrop(
+        map1_1, map2_1, imgshape, result_left, result_right
     )
     result = np.concatenate((result_left, result_right), axis=1)
     result[::20, :] = 0
