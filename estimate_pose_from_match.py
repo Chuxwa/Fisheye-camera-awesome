@@ -24,7 +24,7 @@ def UndistortImage(imgpath, K, D, P):
     """
     img = cv2.imread(imgpath)
     imgshape = img.shape[:2]
-    map1, map2 = cv2.fisheye.initUndistortRectifyMap(
+    map1, map2 = cv2.initUndistortRectifyMap(
         K, D, np.eye(3), P, imgshape[::-1], cv2.CV_16SC2
     )
     undistorted_img = cv2.remap(
@@ -34,8 +34,8 @@ def UndistortImage(imgpath, K, D, P):
 
 
 if __name__ == "__main__":
-    source_name = "front_left"
-    target_name = "front_right"
+    source_name = "left"
+    target_name = "right"
     K_source, D_source = ReadInternalConfig(source_name)
     K_target, D_target = ReadInternalConfig(target_name)
     pairpath = glob.glob(
@@ -58,9 +58,14 @@ if __name__ == "__main__":
     source_P = np.dot(K_source, source_M)
     P = np.dot(K_source, M)
 
-    imgpath = "image/calibration/" + source_name + "/" + source_name + "_1.png"
-    img, unimg = UndistortImage(imgpath, K_source, D_source, source_P)
+    imgpath = "image/calibration/" + source_name + "/image_6.png"
+    img, unimg1 = UndistortImage(imgpath, K_source, D_source, source_P)
     cv2.imwrite("output/estimate_pose/" + source_name + "/sourceimage.png", img)
-    cv2.imwrite("output/estimate_pose/" + source_name + "/translationimage.png", unimg)
-    img, unimg = UndistortImage(imgpath, K_source, D_source, P)
-    cv2.imwrite("output/estimate_pose/" + source_name + "/undistortimage.png", unimg)
+    cv2.imwrite("output/estimate_pose/" + source_name + "/translationimage.png", unimg1)
+    img, unimg2 = UndistortImage(imgpath, K_source, D_source, P)
+    cv2.imwrite("output/estimate_pose/" + source_name + "/undistortimage.png", unimg2)
+
+    result = np.concatenate((unimg1, unimg2), axis=1)
+    result[::20, :] = 0
+    cv2.imwrite("output/estimate_pose/" + source_name + "/results.png", result)
+

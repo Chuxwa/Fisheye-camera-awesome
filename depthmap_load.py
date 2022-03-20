@@ -1,9 +1,10 @@
+from re import I
 import cv2
 import glob
 import time
 import argparse
 import numpy as np
-from epipolar.opencv_methods import EpipolarRecitification
+from epipolar.camera import EpipolarRecitification
 from depthmap_sgbm.opencv_methods import StereoDepthEstimation
 from visualization.open3d_methods import Open3DVisualizer
 from depthmap_raft.raft import RAFTDepthEstimation
@@ -127,21 +128,21 @@ class StereoReconstruction(object):
             img_left,
             img_right,
         )
-        result_left = CropImage(result_left, 600, 1280)
-        result_right = CropImage(result_right, 600, 1280)
+        # result_left = CropImage(result_left, 600, 1280)
+        # result_right = CropImage(result_right, 600, 1280)
 
         result_left = cv2.bilateralFilter(result_left, 20, 75, 75)
         result_right = cv2.bilateralFilter(result_right, 20, 75, 75)
         disparity = self.depthestimation.run(result_left, result_right)
         disparity = ResizeImage(result_left, disparity)
-        disparity = cv2.bilateralFilter(disparity, 3, 75, 75)
+        # disparity = cv2.bilateralFilter(disparity, 3, 75, 75)
         cv2.imwrite("disparity.png", disparity)
         mask = disparity.reshape((-1)) > -80
         points_3d, depth = self.stereoCamera.DepthEstimation(disparity)
 
-        # from post_process.post_process import get_processed
+        # from post_process.post_process import get_denoised
 
-        # points_3d = get_processed(points_3d, result_left, iterations=3)
+        # points_3d = get_denoised(points_3d)
         # cv2.imwrite("output/sgbm/depthmap_" + str(i) + ".png", disp)
         # cv2.imwrite("output/sgbm/depthmap_bf_" + str(i) + ".png", disp_bf)
         points = points_3d.reshape((-1, 3))
@@ -163,7 +164,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--restore_ckpt", help="restore checkpoint", required=True)
     parser.add_argument(
-        "--imgshape", help="the shape of the image", default=(1280, 720)
+        "--imgshape", help="the shape of the image", default=(1624, 1240)
     )
     parser.add_argument(
         "--camera1_name", help="the name of the first (left) camera", default="left"
@@ -180,13 +181,13 @@ if __name__ == "__main__":
         "-l",
         "--left_imgs",
         help="path to all first (left) frames",
-        default="image/test/left/*.png",
+        default="image/test/test/left/image_36.png",
     )
     parser.add_argument(
         "-r",
         "--right_imgs",
         help="path to all second (right) frames",
-        default="image/test/right/*.png",
+        default="image/test/test/right/image_37.png",
     )
     parser.add_argument(
         "--mixed_precision", action="store_true", help="use mixed precision"
@@ -244,15 +245,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     stereoCamera = StereoReconstruction(args)
 
-    test_left = glob.glob(args.left_imgs)
-    test_right = glob.glob(args.right_imgs)
-    for i in range(len(test_left)):
-        img_left = cv2.imread(test_left[i])
-        img_right = cv2.imread(test_right[i])
-        points, colors = stereoCamera.PointCloudGenerator(img_left, img_right)
-        points = NormPointCloud(points)
-        points, colors = DepthFilter(
-            points, colors, threshold_low=-500, threshold_high=500
-        )
-        stereoCamera.PointCloudVisualization(points, colors)
-        break
+    img_left = cv2.imread(args.left_imgs)
+    img_right = cv2.imread(args.right_imgs)
+    points, colors = stereoCamera.PointCloudGenerator(img_left, img_right)
+    points = NormPointCloud(points)
+    points, colors = DepthFilter(points, colors, threshold_low=-500, threshold_high=500)
+    stereoCamera.PointCloudVisualization(points, colors)

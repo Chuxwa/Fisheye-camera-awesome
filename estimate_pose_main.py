@@ -9,10 +9,10 @@ from estimate_pose.opencv_methods import (
 )
 
 if __name__ == "__main__":
-    source_name = "front_right"
-    target_name = "front_left"
-    source_path = "output/calibration/" + source_name + "/41.png"
-    target_path = "output/calibration/" + target_name + "/41.png"
+    source_name = "left"
+    target_name = "right"
+    source_path = "output/calibration/" + source_name + "/0.png"
+    target_path = "output/calibration/" + target_name + "/0.png"
     source_img = cv2.imread(source_path, cv2.IMREAD_GRAYSCALE)
     target_img = cv2.imread(target_path, cv2.IMREAD_GRAYSCALE)
     matches, source_kps, target_kps = SiftMatch(source_img, target_img)
