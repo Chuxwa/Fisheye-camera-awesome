@@ -1,87 +1,93 @@
+import pcl
+import time
+from laspy.file import File
 import numpy as np
+import os
+import time
+import functools
 
 
-from post_process.config import SCALE, OFFSET, THRESHOLD_Z_RELATION
+# 日志耗时装饰器
+def log_execution_time(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        res = func(*args, **kwargs)
+        end = time.perf_counter()
+        print('【%s】 took %.2f s' % (func.__name__, (end - start)))
+        return res
 
-# Will smooth (dequantize) distances in the given array.
-def get_smoothed(distance_map, region_map, clip_threshold):
-    # Create a copy for output.
-    smoothed_distances = np.copy(distance_map)
-    # Iterate each pixel.
-    for row in range(OFFSET, distance_map.shape[0]):
-        for col in range(OFFSET, distance_map.shape[1]):
-            # Keep track of a sum of surrounding pixel distances, and # of pixels included in average.
-            num = 0
-            s = 0
-
-            # Z of the pixel being smoothed.
-            Z = distance_map[row, col, 2]
-            
-            # Iterate through window of potential related pixels.
-            for i in range(-1, 2):
-                for j in range(-4, 5):
-                    # Ignore current target pixel, it will be considered at end.
-                    if i == 0 and j == 0:
-                        continue
-                    surrounding_pixel_row = row + i
-                    surrounding_pixel_col = col + j
-                    if 0 <= surrounding_pixel_row < distance_map.shape[0]:
-                        if 0 <= surrounding_pixel_col < distance_map.shape[1]:
-                            thisZ = distance_map[surrounding_pixel_row, surrounding_pixel_col][2]
-                            # Ignore pixels in the 'garbage zone'
-                            if thisZ > clip_threshold:
-                                continue
-
-                            # Evaluate relationship between pixels.
-                            is_distance_related = abs(thisZ - Z) < THRESHOLD_Z_RELATION*SCALE
-                            is_region_related = region_map[row, col] == region_map[surrounding_pixel_row, surrounding_pixel_col]
-
-                            if (is_distance_related and is_region_related.any()) or Z > clip_threshold :
-                                num += 1
-                                s += thisZ
-                                
-            # Compute average distance.
-            # If original is decently close to this, include it in the average.
-            avgZ = s/num if num != 0 else Z
-            if abs(Z - avgZ)/avgZ < 0.1:
-                avgZ = (num * avgZ + Z) / (num + 1)
-            
-            # Assign new value without mutating original array.
-            smoothed_distances[row, col, 2] = avgZ
-    return smoothed_distances
-
-# Get rid of noisy outlier points that don't contribute to overall structure.
-def get_denoised(distance_map):
-    denoised_distances = np.copy(distance_map)
-    for row in range(OFFSET, distance_map.shape[0] - OFFSET):
-        for col in range(OFFSET, distance_map.shape[1] - OFFSET):
-            Z = distance_map[row, col, 2]
-            s = 0
-            n = 0
-            # Iterate window of surrounding pixels, compute average of Z-distances from current target.
-            for i in range(-1, 1):
-                for j in range(-1, 1):
-                    if i == 0 and j == 0:
-                        continue
-                    n += 1
-                    s += abs(Z - distance_map[row + i, col + j, 2])
-
-            # If pixel has some threshold average distance, considered an outlier.
-            avg = s/n
-            if avg > 10:
-                # This marks a pixel as 'deleted'. 
-                denoised_distances[row, col, 2] = None
-    return denoised_distances
+    return wrapper
 
 
-def get_processed(distance_map, region_map, iterations):
-    # We know that the edges are not processed, so there will be some garbage results there.
-    # Filter them out.
-    invalid_distance = distance_map[0, 0, 2]
-    clip_threshold = 0.99 * invalid_distance
+def readPointCloud(path):
+    cloud = pcl.PointCloud()
+    if (str(path).endswith(".las")):
+        f = File(path, mode='r')
+        print('[INFO] points：{}'.format(len(f.points)))
 
-    result = None
-    for i in range(0, iterations):
-        target = result if not result is None else distance_map
-        result = get_denoised(get_smoothed(target, region_map, clip_threshold=clip_threshold))
-    return result
+        # 构建点云
+        inFile = np.vstack((f.x, f.y, f.z)).transpose()
+        cloud.from_array(np.array(inFile, dtype=np.float32))
+        return cloud
+    else:
+        cloud = pcl.load(path)
+        return cloud
+    return cloud
+
+
+@log_execution_time
+def radiusSearchNormalEstimation(cloud):
+    ne = cloud.make_NormalEstimation()
+    ne.set_RadiusSearch(0.1)
+    normals = ne.compute()
+    print(normals.size, type(normals), normals[0], type(normals[0]))
+    count = 0
+    for i in range(0, normals.size):
+        if (str(normals[i][0]) == 'nan'):
+            continue
+        count = count + 1
+    print(count)
+
+
+@log_execution_time
+def kSearchNormalEstimation(cloud):
+    ne = cloud.make_NormalEstimation()
+    tree = cloud.make_kdtree()
+    ne.set_SearchMethod(tree)
+    ne.set_KSearch(10)
+    normals = ne.compute()
+    print(normals.size, type(normals), normals[0])
+    count = 0
+    for i in range(0, normals.size):
+        if (str(normals[i][0]) == 'nan'):
+            continue
+        count = count + 1
+    print(count)
+
+
+@log_execution_time
+def integralImageNormalEstimation(cloud):
+    normalEstimation = cloud.make_IntegralImageNormalEstimation()
+    normalEstimation.set_NormalEstimation_Method_AVERAGE_3D_GRADIENT()
+    normalEstimation.set_MaxDepthChange_Factor(0.02)
+    normalEstimation.set_NormalSmoothingSize(10.0)
+    normals = normalEstimation.compute()
+    print(normals.size, type(normals), normals[0])
+    # print("[INFO] normalEstimate 耗时:%.2f秒" % (endTime - startTime))
+    count = 0
+    for i in range(0, normals.size):
+        if (str(normals[i][0]) == 'nan'):
+            continue
+        count = count + 1
+    print(count)
+
+# 上级目录同目录的另一个文件夹路径
+path = os.path.abspath(os.path.join(os.getcwd(), "../"))
+path = path + "/pcds/table_scene_mug_stereo_textured.pcd"
+print(path)
+
+cloud = readPointCloud(path)
+kSearchNormalEstimation(cloud)
+radiusSearchNormalEstimation(cloud)
+integralImageNormalEstimation(cloud)

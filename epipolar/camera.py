@@ -85,7 +85,7 @@ def ReadCameraConfig(name):
     return K, D, P, R
 
 
-def FisheyeStereoCalibrate(
+def CameraStereoCalibrate(
     CKBD,
     leftpath,
     rightpath,
@@ -93,7 +93,7 @@ def FisheyeStereoCalibrate(
     calibration_flags,
     stereo_calibration_flags,
 ):
-    """stereo calibration for fisheye camera
+    """stereo calibration for camera
 
     Args:
         CKBD (tuple): the size of the checkerboard
@@ -116,15 +116,15 @@ def FisheyeStereoCalibrate(
         imgshape (tuple): the shape of the image
     """
     _, _, imgpoints_left, K_left, D_left = SingleCameraCalibrate(
-        CKBD, subpix_criteria, calibration_flags, leftpath, use_fisheye=True
+        CKBD, subpix_criteria, calibration_flags, leftpath, use_fisheye=False
     )
     imgshape, objpoints, imgpoints_right, K_right, D_right = SingleCameraCalibrate(
-        CKBD, subpix_criteria, calibration_flags, rightpath, use_fisheye=True
+        CKBD, subpix_criteria, calibration_flags, rightpath, use_fisheye=False
     )
     R = np.zeros((1, 1, 3), dtype=np.float64)
     T = np.zeros((1, 1, 3), dtype=np.float64)
 
-    _, K_left, D_left, K_right, D_right, R, T = cv2.fisheye.stereoCalibrate(
+    _, K_left, D_left, K_right, D_right, R, T, E, F = cv2.stereoCalibrate(
         objpoints,
         imgpoints_left,
         imgpoints_right,
@@ -133,12 +133,18 @@ def FisheyeStereoCalibrate(
         K_right,
         D_right,
         imgshape,
-        R,
-        T,
-        stereo_calibration_flags,
+        flags=cv2.CALIB_FIX_ASPECT_RATIO
+    | cv2.CALIB_ZERO_TANGENT_DIST
+    | cv2.CALIB_USE_INTRINSIC_GUESS
+    | cv2.CALIB_SAME_FOCAL_LENGTH
+    | cv2.CALIB_RATIONAL_MODEL
+    | cv2.CALIB_FIX_K3
+    | cv2.CALIB_FIX_K4
+    | cv2.CALIB_FIX_K5,
+        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 100, 1e-5),
     )
 
-    R1, R2, P1, P2, Q = cv2.fisheye.stereoRectify(
+    R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(
         K_left,
         D_left,
         K_right,
@@ -188,10 +194,10 @@ def EpipolarRecitification(leftcamera, rightcamera, img_left, img_right):
     """
     K_left, D_left, R1, P1, _ = leftcamera
     K_right, D_right, R2, P2, imgshape = rightcamera
-    map1_1, map1_2 = cv2.fisheye.initUndistortRectifyMap(
+    map1_1, map1_2 = cv2.initUndistortRectifyMap(
         K_left, D_left, R1, P1, imgshape, cv2.CV_16SC2
     )
-    map2_1, map2_2 = cv2.fisheye.initUndistortRectifyMap(
+    map2_1, map2_2 = cv2.initUndistortRectifyMap(
         K_right, D_right, R2, P2, imgshape, cv2.CV_16SC2
     )
     result_left = cv2.remap(
@@ -243,7 +249,7 @@ if __name__ == "__main__":
         P2,
         Q,
         imgshape,
-    ) = FisheyeStereoCalibrate(
+    ) = CameraStereoCalibrate(
         CHECKERBOARD,
         leftpath,
         rightpath,

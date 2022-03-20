@@ -56,11 +56,16 @@ def FindImagePoints(CKBD: tuple, imgpath: list, objp: np.array, subpix_criteria:
 
 
 def FisheyeCalibrate(
-    objpoints: list, imgpoints: list, calibration_flags: tuple, imgshape: tuple
+    objpoints: list,
+    imgpoints: list,
+    subpix_criteria: tuple,
+    calibration_flags: tuple,
+    imgshape: tuple,
 ):
     """
     :param objpoints: the object points, 3d point in real world space
     :param imgpoints: the image points, 2d points in image plane
+    :param subpix_criteria: flags, how to find the chess board corners
     :param calibration_flags: flags, how to compute calibration matrix
     :param imgshape: list or tuple, the size of the image
     return:
@@ -81,8 +86,44 @@ def FisheyeCalibrate(
         rvecs,
         tvecs,
         calibration_flags,
-        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6),
+        subpix_criteria,
     )
+    print("Found " + str(N_OK) + " valid images for calibration")
+    print("K=np.array(" + str(K.tolist()) + ")")
+    print("D=np.array(" + str(D.tolist()) + ")")
+    return K, D
+
+
+def CameraCalibrate(
+    objpoints: list,
+    imgpoints: list,
+    subpix_criteria: tuple,
+    calibration_flags: tuple,
+    imgshape: tuple,
+):
+    """
+    :param objpoints: the object points, 3d point in real world space
+    :param imgpoints: the image points, 2d points in image plane
+    :param subpix_criteria: flags, how to find the chess board corners
+    :param calibration_flags: flags, how to compute calibration matrix
+    :param imgshape: list or tuple, the size of the image
+    return:
+        K: 3x3 floating-point camera matrix
+        D: vector of distortion coefficients
+    """
+    N_OK = len(objpoints)
+    K = np.zeros((3, 3))
+    D = np.zeros((4, 1))
+    _, K, D, _, _ = cv2.calibrateCamera(
+        objpoints,
+        imgpoints,
+        imgshape,
+        None,
+        None,
+        flags=calibration_flags,
+        criteria=subpix_criteria,
+    )
+
     print("Found " + str(N_OK) + " valid images for calibration")
     print("K=np.array(" + str(K.tolist()) + ")")
     print("D=np.array(" + str(D.tolist()) + ")")
@@ -109,12 +150,35 @@ def UndistortImage(imgpath, K, D):
     return img, undistorted_img
 
 
-def SingleCameraCalibrate(CKBD, subpix_criteria, calibration_flags, rootpath):
+def CameraUndistortImage(imgpath, K, D):
+    """
+    :param imgpath: string, the root path of the image
+    :param K: 3x3 floating-point camera matrix
+    :param D: vector of distortion coefficients
+    return:
+        img: the source image
+        undistorted_img: the undistorted image
+    """
+    img = cv2.imread(imgpath)
+    imgshape = img.shape[:2]
+    map1, map2 = cv2.initUndistortRectifyMap(
+        K, D, np.eye(3), K, imgshape[::-1], cv2.CV_16SC2
+    )
+    undistorted_img = cv2.remap(
+        img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT
+    )
+    return img, undistorted_img
+
+
+def SingleCameraCalibrate(
+    CKBD, subpix_criteria, calibration_flags, rootpath, use_fisheye
+):
     """
     :param CKBD: list or tuple, the size of the checkerboard
     :param subpix_criteria: flags, how to find the chess board corners
     :param calibration_flags: flags, how to compute calibration matrix
     :param rootpath: the root path of the image
+    :param use_fisheye: use fisheye or not
     return:
         imgshape: list or tuple, the shape of the image
         objpoints: the object points, 3d point in real world space
@@ -127,7 +191,14 @@ def SingleCameraCalibrate(CKBD, subpix_criteria, calibration_flags, rootpath):
     objpoints, imgpoints, imgshape = FindImagePoints(
         CKBD, imgpath, objp, subpix_criteria
     )
-    K, D = FisheyeCalibrate(objpoints, imgpoints, calibration_flags, imgshape)
+    if use_fisheye:
+        K, D = FisheyeCalibrate(
+            objpoints, imgpoints, subpix_criteria, calibration_flags, imgshape
+        )
+    else:
+        K, D = CameraCalibrate(
+            objpoints, imgpoints, subpix_criteria, calibration_flags, imgshape
+        )
     objpoints = np.reshape(objpoints, (-1, 1, CKBD[0] * CKBD[1], 3))
     imgpoints = np.reshape(imgpoints, (-1, 1, CKBD[0] * CKBD[1], 2))
     return imgshape, objpoints, imgpoints, K, D
