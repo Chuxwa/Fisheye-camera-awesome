@@ -133,15 +133,8 @@ def CameraStereoCalibrate(
         K_right,
         D_right,
         imgshape,
-        flags=cv2.CALIB_FIX_ASPECT_RATIO
-    | cv2.CALIB_ZERO_TANGENT_DIST
-    | cv2.CALIB_USE_INTRINSIC_GUESS
-    | cv2.CALIB_SAME_FOCAL_LENGTH
-    | cv2.CALIB_RATIONAL_MODEL
-    | cv2.CALIB_FIX_K3
-    | cv2.CALIB_FIX_K4
-    | cv2.CALIB_FIX_K5,
-        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 100, 1e-5),
+        flags=stereo_calibration_flags,
+        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 45, 1e-8),
     )
 
     R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(
@@ -214,9 +207,9 @@ def EpipolarRecitification(leftcamera, rightcamera, img_left, img_right):
         interpolation=cv2.INTER_LINEAR,
         borderMode=cv2.BORDER_CONSTANT,
     )
-    result_left, result_right = AlphaCrop(
-        map1_1, map2_1, imgshape, result_left, result_right
-    )
+    # result_left, result_right = AlphaCrop(
+    #     map1_1, map2_1, imgshape, result_left, result_right
+    # )
     result = np.concatenate((result_left, result_right), axis=1)
     result[::20, :] = 0
     return result, result_left, result_right

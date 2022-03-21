@@ -4,7 +4,7 @@ import glob
 import time
 import argparse
 import numpy as np
-from epipolar.opencv_methods import EpipolarRecitification
+from epipolar.camera import EpipolarRecitification
 from depthmap_sgbm.opencv_methods import StereoDepthEstimation
 from visualization.open3d_methods import Open3DVisualizer
 from depthmap_raft.raft import RAFTDepthEstimation
@@ -134,11 +134,11 @@ class StereoReconstruction(object):
             img_left,
             img_right,
         )
-        result_left = CropImage(result_left, 600, 1280)
-        result_right = CropImage(result_right, 600, 1280)
+        result_left = CropImage(result_left, 960, 1440)
+        result_right = CropImage(result_right, 960, 1440)
 
-        result_left = cv2.bilateralFilter(result_left, 20, 75, 75)
-        result_right = cv2.bilateralFilter(result_right, 20, 75, 75)
+        # result_left = cv2.bilateralFilter(result_left, 3, 15, 15)
+        # result_right = cv2.bilateralFilter(result_right, 3, 15, 15)
         disparity = self.depthestimation.run(result_left, result_right)
         # result_left = CropImage(result_left, 400, 960)
         # result_right = CropImage(result_right, 400, 960)
@@ -149,7 +149,7 @@ class StereoReconstruction(object):
         cv2.imwrite("result_right.png", result_right)
         cv2.imwrite("disparity.png", disparity)
         points_3d, depth = self.stereoCamera.DepthEstimation(disparity)
-        mask = depth.reshape((-1)) < 500
+        # mask = depth.reshape((-1)) < 500
 
         # from post_process.post_process import get_denoised
 
@@ -158,8 +158,15 @@ class StereoReconstruction(object):
         # cv2.imwrite("output/sgbm/depthmap_bf_" + str(i) + ".png", disp_bf)
         points = points_3d.reshape((-1, 3))
         colors = result_left.reshape((-1, 3)) / 255.0
-        # 0: -754, 461     1: -440, 54     2: 21, 665
-        mask = (points[:,0] > -300) & (points[:,0] < 200) & (points[:,1] > -200) & (points[:,1] < 55)& (points[:,2] < 400)& (points[:,2] > 50)
+        # 0: -201, 92     1: -259, 10     2: 16, 381
+        mask = (
+            (points[:, 0] > -150)
+            & (points[:, 0] < 80)
+            & (points[:, 1] > -200)
+            & (points[:, 1] < 55)
+            & (points[:, 2] < 100)
+            & (points[:, 2] > 10)
+        )
         points, colors = MaskDepthFilter(points, colors, mask)
         return points, colors
 
@@ -177,7 +184,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--restore_ckpt", help="restore checkpoint", required=True)
     parser.add_argument(
-        "--imgshape", help="the shape of the image", default=(1280, 720)
+        "--imgshape", help="the shape of the image", default=(1624, 1240)
     )
     parser.add_argument(
         "--camera1_name", help="the name of the first (left) camera", default="left"
