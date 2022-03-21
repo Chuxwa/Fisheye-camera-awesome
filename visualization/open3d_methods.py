@@ -72,6 +72,9 @@ class Open3DVisualizer(object):
         self.pointcloud.points = o3d.utility.Vector3dVector(points)
         self.pointcloud.colors = o3d.utility.Vector3dVector(colors)
 
+        self.DisplayInlier(nb_points = 8, radius = 6)
+        self.DisplayInlier(nb_points = 8, radius = 6)
+
         self.visualizer.clear_geometries()  # clear
         self.visualizer.add_geometry(self.pointcloud)  # add
         # self.visualizer.update_geometry(self.pointcloud)  # update
@@ -141,3 +144,22 @@ class Open3DVisualizer(object):
         o3d.visualization.draw_geometries_with_key_callbacks(
             [self.pointcloud], key_to_callback
         )
+
+    def DisplayInlier(
+        self,
+        voxel_size: float = 0.2,
+        nb_points: int = 16,
+        radius: float = 6.0,
+    ):
+        """Remove outlier points
+
+        Args:
+            voxel_size (float, optional): voxelization. Defaults to 0.2.
+            nb_points (int, optional): neighborhood points. Defaults to 16.
+            radius (float, optional): radius. Defaults to 6.0.
+        """
+        self.pointcloud = self.pointcloud.voxel_down_sample(voxel_size=voxel_size)
+        _, ind = self.pointcloud.remove_radius_outlier(
+            nb_points=nb_points, radius=radius
+        )
+        self.pointcloud = self.pointcloud.select_by_index(ind)
