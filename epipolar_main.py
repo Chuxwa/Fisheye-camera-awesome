@@ -7,13 +7,13 @@ from epipolar.opencv_methods import FisheyeStereoCalibrate, EpipolarRecitificati
 
 if __name__ == "__main__":
     CHECKERBOARD = (7, 10)
-    subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 0.00001)
+    subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1e-8)
     calibration_flags = (
         cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC
         + cv2.fisheye.CALIB_CHECK_COND
         + cv2.fisheye.CALIB_FIX_SKEW
     )
-    stereo_calibration_flags = cv2.CALIB_USE_INTRINSIC_GUESS
+    stereo_calibration_flags = cv2.CALIB_FIX_INTRINSIC
     leftpath = "image/calibration/front_left/*.png"
     rightpath = "image/calibration/front_right/*.png"
 
