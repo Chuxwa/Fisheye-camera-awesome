@@ -9,19 +9,6 @@ from depthmap_sgbm.opencv_methods import StereoDepthEstimation
 from visualization.open3d_methods import Open3DVisualizer
 from depthmap_raft.raft import RAFTDepthEstimation
 
-
-def NormPointCloud(points):
-    x, y, z = np.array_split(points, 3, axis=1)
-    x_mean = np.mean(x)
-    y_mean = np.mean(y)
-    z_mean = np.mean(z)
-    x_norm = x - x_mean
-    y_norm = y - y_mean
-    z_norm = z - z_mean
-    outpoints = np.stack([x_norm, y_norm, z_norm], axis=1)[:, :, 0]
-    return outpoints
-
-
 def DepthFilter(points, colors, threshold_low: int = 0, threshold_high: int = 45):
     """Remove useless points
 
@@ -114,7 +101,6 @@ class StereoReconstruction(object):
         self.stereoCamera = StereoDepthEstimation(
             args.imgshape, args.camera1_name, args.camera2_name
         )
-        self.visualizer = Open3DVisualizer(args.jsonpath)
         self.depthestimation = RAFTDepthEstimation(args)
 
     def PointCloudGenerator(self, img_left: np.ndarray, img_right: np.ndarray):
@@ -128,34 +114,27 @@ class StereoReconstruction(object):
             points: the positions of the points
             colors: the depth of all points
         """
+
         _, result_left, result_right = EpipolarRecitification(
             self.stereoCamera.camera1_cfg,
             self.stereoCamera.camera2_cfg,
             img_left,
             img_right,
         )
+
         result_left = CropImage(result_left, 600, 1280)
         result_right = CropImage(result_right, 600, 1280)
 
         result_left = cv2.bilateralFilter(result_left, 20, 75, 75)
         result_right = cv2.bilateralFilter(result_right, 20, 75, 75)
+        start = time.time()
         disparity = self.depthestimation.run(result_left, result_right)
-        # result_left = CropImage(result_left, 400, 960)
-        # result_right = CropImage(result_right, 400, 960)
-        # disparity = CropImage(disparity, 400, 600)
+        end = time.time()
+        print(end - start)
         disparity = ResizeImage(result_left, disparity)
-        # disparity = cv2.bilateralFilter(disparity, 3, 75, 75)
-        cv2.imwrite("result_left.png", result_left)
-        cv2.imwrite("result_right.png", result_right)
-        cv2.imwrite("disparity.png", disparity)
         points_3d, depth = self.stereoCamera.DepthEstimation(disparity)
         mask = depth.reshape((-1)) < 500
 
-        # from post_process.post_process import get_denoised
-
-        # points_3d = get_denoised(points_3d)
-        # cv2.imwrite("output/sgbm/depthmap_" + str(i) + ".png", disp)
-        # cv2.imwrite("output/sgbm/depthmap_bf_" + str(i) + ".png", disp_bf)
         points = points_3d.reshape((-1, 3))
         colors = result_left.reshape((-1, 3)) / 255.0
         # 0: -754, 461     1: -440, 54     2: 21, 665
@@ -260,9 +239,8 @@ if __name__ == "__main__":
 
     img_left = cv2.imread(args.left_imgs)
     img_right = cv2.imread(args.right_imgs)
+    start = time.time()
     points, colors = stereoCamera.PointCloudGenerator(img_left, img_right)
-    # points = NormPointCloud(points)
-    # points, colors = DepthFilter(points, colors, threshold_low=-500, threshold_high=500)
-    stereoCamera.PointCloudVisualization(points, colors)
-    # stereoCamera.visualizer.SaveViewPoint(args.jsonpath)
-    # stereoCamera.visualizer.SaveViewPoint(args.jsonpath)
+    end = time.time()
+    print(end - start)
+    # stereoCamera.PointCloudVisualization(points, colors)

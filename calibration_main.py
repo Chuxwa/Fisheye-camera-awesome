@@ -11,8 +11,8 @@ from calibration.opencv_methods import (
 )
 
 if __name__ == "__main__":
-    CHECKERBOARD = (24, 24)
-    name = "left"
+    CHECKERBOARD = (7, 10)
+    name = "right"
     subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 1e-8)
     calibration_flags = (
         cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     )
 
     objp = CreateObjectPoints(CHECKERBOARD)
-    imgpath = glob.glob("image/calibration/" + name + "/*.png")
+    imgpath = glob.glob("image/epipolar/" + name + "/*.png")
     objpoints, imgpoints, imgshape = FindImagePoints(
         CHECKERBOARD, imgpath, objp, subpix_criteria
     )
@@ -37,8 +37,8 @@ if __name__ == "__main__":
 
     SaveInternalConfig(K, D, name)
 
-    imgpath = glob.glob("image/calibration/left/*.png")
-    name = "left"
+    imgpath = glob.glob("image/epipolar/right/*.png")
+    name = "right"
     for i, frame in enumerate(imgpath):
         if fisheye:
             img, unimg = UndistortImage(frame, K, D)
