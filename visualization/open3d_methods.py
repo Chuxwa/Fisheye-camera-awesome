@@ -72,8 +72,8 @@ class Open3DVisualizer(object):
         self.pointcloud.points = o3d.utility.Vector3dVector(points)
         self.pointcloud.colors = o3d.utility.Vector3dVector(colors)
 
-        self.DisplayInlier(nb_points = 8, radius = 6)
-        self.DisplayInlier(nb_points = 8, radius = 6)
+        self.DisplayInlier(nb_points = 16, radius = 4)
+        self.DisplayInlier(nb_points = 16, radius = 4)
 
         self.visualizer.clear_geometries()  # clear
         self.visualizer.add_geometry(self.pointcloud)  # add
